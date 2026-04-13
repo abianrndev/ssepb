@@ -10,9 +10,12 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
+use App\Http\Controllers\Concerns\FormatsPdfNumbers;
 
 class QuickCastController extends Controller
 {
+    use FormatsPdfNumbers;
+
     public function showCalculator(Request $request): Response
     {
         $result = null;
@@ -158,64 +161,61 @@ class QuickCastController extends Controller
         return $price ? (float) $price->harga_per_m3 : 0.0;
     }
 
-    private function buildPdfData(Request $request, QuickCastEstimation $quickCastEstimation): array
-        {
-            $tebalCm = (float) $quickCastEstimation->tebal_cm;
-            $tebalM  = (float) $quickCastEstimation->tebal_m;
-            $panjang = (float) $quickCastEstimation->panjang_m;
-            $lebar   = (float) $quickCastEstimation->lebar_m;
+        private function buildPdfData(Request $request, QuickCastEstimation $quickCastEstimation): array
+    {
+        $tebalCm = (float) $quickCastEstimation->tebal_cm;
+        $tebalM  = (float) $quickCastEstimation->tebal_m;
+        $panjang = (float) $quickCastEstimation->panjang_m;
+        $lebar   = (float) $quickCastEstimation->lebar_m;
 
-            $project = [
-                'nama_proyek'       => $quickCastEstimation->nama_proyek ?? '-',
-                'lokasi_proyek'     => $quickCastEstimation->lokasi_proyek ?? '-',
-                'mutu_beton'        => $quickCastEstimation->mutu_rekomendasi ?? '-',
-                'waste_percent'     => (float) $quickCastEstimation->waste_percent,
-                'metode_input'      => 'Quick Cast (Cor Cepat)',
-                'tanggal_estimasi'  => optional($quickCastEstimation->created_at)->format('Y-m-d H:i:s'),
-            ];
+        $project = [
+            'nama_proyek'      => $quickCastEstimation->nama_proyek ?? '-',
+            'lokasi_proyek'    => $quickCastEstimation->lokasi_proyek ?? '-',
+            'mutu_beton'       => $quickCastEstimation->mutu_rekomendasi ?? '-',
+            'waste_percent'    => $this->fmtNum($quickCastEstimation->waste_percent, 2),
+            'metode_input'     => 'Quick Cast (Cor Cepat)',
+            'tanggal_estimasi' => optional($quickCastEstimation->created_at)->format('Y-m-d H:i:s'),
+        ];
 
-            $parameters = [
-                ['label' => 'Panjang',           'value' => number_format($panjang, 2, ',', '.') . ' m'],
-                ['label' => 'Lebar',             'value' => number_format($lebar, 2, ',', '.') . ' m'],
-                ['label' => 'Tebal',             'value' => number_format($tebalCm, 2, ',', '.') . ' cm (' . number_format($tebalM, 4, ',', '.') . ' m)'],
-                ['label' => 'Beban Penggunaan',  'value' => ucfirst($quickCastEstimation->beban_penggunaan ?? '-')],
-                ['label' => 'Mutu Rekomendasi',  'value' => $quickCastEstimation->mutu_rekomendasi ?? '-'],
-            ];
+        $parameters = [
+            ['label' => 'Panjang',          'value' => $this->fmtNum($panjang, 2) . ' m'],
+            ['label' => 'Lebar',            'value' => $this->fmtNum($lebar, 2) . ' m'],
+            ['label' => 'Tebal',            'value' => $this->fmtNum($tebalCm, 2) . ' cm (' . $this->fmtNum($tebalM, 4) . ' m)'],
+            ['label' => 'Beban Penggunaan', 'value' => ucfirst($quickCastEstimation->beban_penggunaan ?? '-')],
+            ['label' => 'Mutu Rekomendasi', 'value' => $quickCastEstimation->mutu_rekomendasi ?? '-'],
+        ];
 
-            $detailItems = [
-                [
-                    'nama'        => 'Area Cor (' . number_format($panjang, 2) . ' × ' . number_format($lebar, 2) . ' m)',
-                    'jumlah'      => 1,
-                    'dimensi'     => number_format($panjang, 3) . ' × ' . number_format($lebar, 3) . ' × ' . number_format($tebalM, 3) . ' m',
-                    'volume'      => number_format((float) $quickCastEstimation->volume_kotor, 4),
-                    'keterangan'  => 'Beban: ' . ucfirst($quickCastEstimation->beban_penggunaan ?? '-'),
-                ],
-            ];
+        $detailItems = [[
+            'nama'       => 'Area Cor (' . $this->fmtNum($panjang, 2) . ' × ' . $this->fmtNum($lebar, 2) . ' m)',
+            'jumlah'     => 1,
+            'dimensi'    => $this->fmtNum($panjang, 3) . ' × ' . $this->fmtNum($lebar, 3) . ' × ' . $this->fmtNum($tebalM, 3) . ' m',
+            'volume'     => $this->fmtNum($quickCastEstimation->volume_kotor, 4),
+            'keterangan' => 'Beban: ' . ucfirst($quickCastEstimation->beban_penggunaan ?? '-'),
+        ]];
 
-            $summary = [
-                'volume_kotor'          => number_format((float) $quickCastEstimation->volume_kotor, 4, ',', '.'),
-                'volume_pengurang'      => number_format(0, 4, ',', '.'),
-                'volume_bersih'         => number_format((float) $quickCastEstimation->volume_bersih, 4, ',', '.'),
-                'waste_volume'          => number_format((float) $quickCastEstimation->waste_volume, 4, ',', '.'),
-                'total_akhir_m3'        => number_format((float) $quickCastEstimation->total_akhir_m3, 4, ',', '.'),
-                'harga_per_m3'          => number_format((float) $quickCastEstimation->harga_per_m3, 0, ',', '.'),
-                'estimasi_harga_total'  => number_format((float) $quickCastEstimation->estimasi_harga_total, 0, ',', '.'),
-            ];
+        $summary = [
+            'volume_kotor'         => $this->fmtNum($quickCastEstimation->volume_kotor, 4),
+            'volume_pengurang'     => $this->fmtNum(0, 4),
+            'volume_bersih'        => $this->fmtNum($quickCastEstimation->volume_bersih, 4),
+            'waste_volume'         => $this->fmtNum($quickCastEstimation->waste_volume, 4),
+            'total_akhir_m3'       => $this->fmtNum($quickCastEstimation->total_akhir_m3, 4),
+            'harga_per_m3'         => $this->fmtInt($quickCastEstimation->harga_per_m3),
+            'estimasi_harga_total' => $this->fmtInt($quickCastEstimation->estimasi_harga_total),
+        ];
 
-            return [
-                'printed_at'        => now()->format('Y-m-d H:i:s'),
-                'jenis_kalkulasi'   => 'Cor Cepat (Quick Cast)',
-                'document_no'       => 'EST-QC-' . str_pad((string) $quickCastEstimation->id, 6, '0', STR_PAD_LEFT),
-                'prepared_by'       => $request->user()->name ?? $request->user()->email,
-                'app_name'          => config('app.name'),
-
-                'project'       => $project,
-                'parameters'    => $parameters,
-                'detail_items'  => $detailItems,
-                'deductions'    => [],
-                'summary'       => $summary,
-            ];
-        }
+        return [
+            'printed_at'      => now()->format('Y-m-d H:i:s'),
+            'jenis_kalkulasi' => 'Cor Cepat (Quick Cast)',
+            'document_no'     => 'EST-QC-' . str_pad((string) $quickCastEstimation->id, 6, '0', STR_PAD_LEFT),
+            'prepared_by'     => $request->user()->name ?? $request->user()->email,
+            'app_name'        => config('app.name'),
+            'project'         => $project,
+            'parameters'      => $parameters,
+            'detail_items'    => $detailItems,
+            'deductions'      => [],
+            'summary'         => $summary,
+        ];
+    }
 
         public function exportPdf(Request $request, QuickCastEstimation $quickCastEstimation)
         {

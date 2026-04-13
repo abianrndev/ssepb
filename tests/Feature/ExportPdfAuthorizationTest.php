@@ -156,4 +156,45 @@ class ExportPdfAuthorizationTest extends TestCase
             ->get(route('engineer.quick-cast.export-pdf', $estimation->id))
             ->assertForbidden();
     }
+    public function test_guest_cannot_access_export_pdf_routes(): void
+    {
+        $owner = $this->engineerUser('owner-guest-check@test.com');
+    
+        $building = $this->createBuilding($owner);
+        $road = $this->createRoad($owner);
+        $quick = $this->createQuick($owner);
+    
+        $this->get(route('engineer.building.export-pdf', $building->id))
+            ->assertRedirect('/login');
+    
+        $this->get(route('engineer.road.export-pdf', $road->id))
+            ->assertRedirect('/login');
+    
+        $this->get(route('engineer.quick-cast.export-pdf', $quick->id))
+            ->assertRedirect('/login');
+    }
+    
+    public function test_export_pdf_returns_pdf_content_type_for_owner(): void
+    {
+        $owner = $this->engineerUser('owner-pdf-header@test.com');
+    
+        $building = $this->createBuilding($owner);
+        $road = $this->createRoad($owner);
+        $quick = $this->createQuick($owner);
+    
+        $this->actingAs($owner)
+            ->get(route('engineer.building.export-pdf', $building->id))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    
+        $this->actingAs($owner)
+            ->get(route('engineer.road.export-pdf', $road->id))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    
+        $this->actingAs($owner)
+            ->get(route('engineer.quick-cast.export-pdf', $quick->id))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
 }

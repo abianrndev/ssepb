@@ -14,9 +14,11 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
+use App\Http\Controllers\Concerns\FormatsPdfNumbers;
 
 class RoadCalculatorController extends Controller
 {
+    use FormatsPdfNumbers;
     public function showCalculator(Request $request): Response
     {
         $result = null;
@@ -307,18 +309,15 @@ class RoadCalculatorController extends Controller
         ];
     
         $parameters = [
-            ['label' => 'Metode Input',      'value' => $roadEstimation->metode_input === 'total' ? 'Total Langsung' : 'Per Segmen (STA)'],
-            ['label' => 'Jumlah Lajur',      'value' => (int) $roadEstimation->jumlah_lajur],
-            ['label' => 'Lebar per Lajur',   'value' => number_format((float) $roadEstimation->lebar_per_lajur_m, 3, ',', '.') . ' m'],
-            ['label' => 'Bahu Kiri',         'value' => number_format((float) $roadEstimation->bahu_kiri_m, 3, ',', '.') . ' m'],
-            ['label' => 'Bahu Kanan',        'value' => number_format((float) $roadEstimation->bahu_kanan_m, 3, ',', '.') . ' m'],
-            ['label' => 'Lebar Total',       'value' => number_format((float) $roadEstimation->lebar_total_m, 3, ',', '.') . ' m'],
-            ['label' => 'Tebal Beton',       'value' => number_format((float) $roadEstimation->tebal_beton_m, 3, ',', '.') . ' m'],
-            ['label' => 'Panjang Total',     'value' => $roadEstimation->panjang_total_m !== null
-                ? number_format((float) $roadEstimation->panjang_total_m, 3, ',', '.') . ' m'
-                : '-'],
-        ];
-    
+            ['label' => 'Metode Input',    'value' => $roadEstimation->metode_input === 'total' ? 'Total Langsung' : 'Per Segmen (STA)'],
+            ['label' => 'Jumlah Lajur',    'value' => (int) $roadEstimation->jumlah_lajur],
+            ['label' => 'Lebar per Lajur', 'value' => $this->fmtNum($roadEstimation->lebar_per_lajur_m, 3) . ' m'],
+            ['label' => 'Bahu Kiri',       'value' => $this->fmtNum($roadEstimation->bahu_kiri_m, 3) . ' m'],
+            ['label' => 'Bahu Kanan',      'value' => $this->fmtNum($roadEstimation->bahu_kanan_m, 3) . ' m'],
+            ['label' => 'Lebar Total',     'value' => $this->fmtNum($roadEstimation->lebar_total_m, 3) . ' m'],
+            ['label' => 'Tebal Beton',     'value' => $this->fmtNum($roadEstimation->tebal_beton_m, 3) . ' m'],
+            ['label' => 'Panjang Total',   'value' => $roadEstimation->panjang_total_m !== null ? $this->fmtNum($roadEstimation->panjang_total_m, 3) . ' m' : '-'],
+        ];    
         // Jika mode total, buat 1 baris detail
         if ($roadEstimation->metode_input === 'total') {
             $detailItems = [
@@ -356,13 +355,13 @@ class RoadCalculatorController extends Controller
         ])->values()->all();
     
         $summary = [
-            'volume_kotor'          => number_format((float) $roadEstimation->volume_kotor, 4, ',', '.'),
-            'volume_pengurang'      => number_format((float) $roadEstimation->volume_pengurang, 4, ',', '.'),
-            'volume_bersih'         => number_format((float) $roadEstimation->volume_bersih, 4, ',', '.'),
-            'waste_volume'          => number_format((float) $roadEstimation->waste_volume, 4, ',', '.'),
-            'total_akhir_m3'        => number_format((float) $roadEstimation->total_akhir_m3, 4, ',', '.'),
-            'harga_per_m3'          => number_format((float) $roadEstimation->harga_per_m3, 0, ',', '.'),
-            'estimasi_harga_total'  => number_format((float) $roadEstimation->estimasi_harga_total, 0, ',', '.'),
+            'volume_kotor'         => $this->fmtNum($roadEstimation->volume_kotor, 4),
+            'volume_pengurang'     => $this->fmtNum($roadEstimation->volume_pengurang, 4),
+            'volume_bersih'        => $this->fmtNum($roadEstimation->volume_bersih, 4),
+            'waste_volume'         => $this->fmtNum($roadEstimation->waste_volume, 4),
+            'total_akhir_m3'       => $this->fmtNum($roadEstimation->total_akhir_m3, 4),
+            'harga_per_m3'         => $this->fmtInt($roadEstimation->harga_per_m3),
+            'estimasi_harga_total' => $this->fmtInt($roadEstimation->estimasi_harga_total),
         ];
     
         return [
