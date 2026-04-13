@@ -26,6 +26,10 @@ const rupiah = (n) => new Intl.NumberFormat('id-ID').format(Number(n || 0));
                         <Link href="/engineer/quick-cast/history" class="text-indigo-600 hover:underline">
                             ← Kembali ke Riwayat
                         </Link>
+                        <a :href="`/engineer/quick-cast/history/${item.id}/export-pdf`"
+                            class="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700">
+                            Download PDF
+                        </a>
                     </div>
 
                     <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">

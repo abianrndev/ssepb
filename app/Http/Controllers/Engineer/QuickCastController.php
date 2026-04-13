@@ -159,38 +159,75 @@ class QuickCastController extends Controller
     }
 
     private function buildPdfData(Request $request, QuickCastEstimation $quickCastEstimation): array
-    {
-        return [
-            'printed_at' => now()->format('Y-m-d H:i:s'),
-            'document_no' => 'EST-QC-' . str_pad((string)$quickCastEstimation->id, 6, '0', STR_PAD_LEFT),
-            'prepared_by' => $request->user()->name ?? $request->user()->email,
-            'app_name' => config('app.name'),
-            'project' => [
-                'nama_proyek' => $quickCastEstimation->nama_proyek ?? '-',
-                'lokasi_proyek' => $quickCastEstimation->lokasi_proyek ?? '-',
-                'mutu_beton' => $quickCastEstimation->mutu_beton ?? '-',
-                'tanggal_estimasi' => optional($quickCastEstimation->created_at)->format('Y-m-d H:i:s'),
-            ],
-            'summary' => [
-                'volume_kotor' => number_format((float)($quickCastEstimation->volume_kotor ?? 0), 4, ',', '.'),
-                'volume_pengurang' => number_format((float)($quickCastEstimation->volume_pengurang ?? 0), 4, ',', '.'),
-                'volume_bersih' => number_format((float)($quickCastEstimation->volume_bersih ?? 0), 4, ',', '.'),
-                'waste_volume' => number_format((float)($quickCastEstimation->waste_volume ?? 0), 4, ',', '.'),
-                'total_akhir_m3' => number_format((float)($quickCastEstimation->total_akhir_m3 ?? 0), 4, ',', '.'),
-                'harga_per_m3' => number_format((float)($quickCastEstimation->harga_per_m3 ?? 0), 0, ',', '.'),
-                'estimasi_harga_total' => number_format((float)($quickCastEstimation->estimasi_harga_total ?? 0), 0, ',', '.'),
-            ],
-        ];
-    }
+        {
+            $tebalCm = (float) $quickCastEstimation->tebal_cm;
+            $tebalM  = (float) $quickCastEstimation->tebal_m;
+            $panjang = (float) $quickCastEstimation->panjang_m;
+            $lebar   = (float) $quickCastEstimation->lebar_m;
 
-    public function exportPdf(Request $request, QuickCastEstimation $quickCastEstimation)
-    {
-        abort_if($quickCastEstimation->user_id !== $request->user()->id, 403);
+            $project = [
+                'nama_proyek'       => $quickCastEstimation->nama_proyek ?? '-',
+                'lokasi_proyek'     => $quickCastEstimation->lokasi_proyek ?? '-',
+                'mutu_beton'        => $quickCastEstimation->mutu_rekomendasi ?? '-',
+                'waste_percent'     => (float) $quickCastEstimation->waste_percent,
+                'metode_input'      => 'Quick Cast (Cor Cepat)',
+                'tanggal_estimasi'  => optional($quickCastEstimation->created_at)->format('Y-m-d H:i:s'),
+            ];
 
-        $data = $this->buildPdfData($request, $quickCastEstimation);
-        $pdf = Pdf::loadView('pdf.estimasi-quickcast-template', $data)->setPaper('a4', 'portrait');
+            $parameters = [
+                ['label' => 'Panjang',           'value' => number_format($panjang, 2, ',', '.') . ' m'],
+                ['label' => 'Lebar',             'value' => number_format($lebar, 2, ',', '.') . ' m'],
+                ['label' => 'Tebal',             'value' => number_format($tebalCm, 2, ',', '.') . ' cm (' . number_format($tebalM, 4, ',', '.') . ' m)'],
+                ['label' => 'Beban Penggunaan',  'value' => ucfirst($quickCastEstimation->beban_penggunaan ?? '-')],
+                ['label' => 'Mutu Rekomendasi',  'value' => $quickCastEstimation->mutu_rekomendasi ?? '-'],
+            ];
 
-        $safeName = Str::slug($quickCastEstimation->nama_proyek ?: 'proyek-quick-cast');
-        return $pdf->download("estimasi-quickcast-{$quickCastEstimation->id}-{$safeName}.pdf");
-    }
+            $detailItems = [
+                [
+                    'nama'        => 'Area Cor (' . number_format($panjang, 2) . ' × ' . number_format($lebar, 2) . ' m)',
+                    'jumlah'      => 1,
+                    'dimensi'     => number_format($panjang, 3) . ' × ' . number_format($lebar, 3) . ' × ' . number_format($tebalM, 3) . ' m',
+                    'volume'      => number_format((float) $quickCastEstimation->volume_kotor, 4),
+                    'keterangan'  => 'Beban: ' . ucfirst($quickCastEstimation->beban_penggunaan ?? '-'),
+                ],
+            ];
+
+            $summary = [
+                'volume_kotor'          => number_format((float) $quickCastEstimation->volume_kotor, 4, ',', '.'),
+                'volume_pengurang'      => number_format(0, 4, ',', '.'),
+                'volume_bersih'         => number_format((float) $quickCastEstimation->volume_bersih, 4, ',', '.'),
+                'waste_volume'          => number_format((float) $quickCastEstimation->waste_volume, 4, ',', '.'),
+                'total_akhir_m3'        => number_format((float) $quickCastEstimation->total_akhir_m3, 4, ',', '.'),
+                'harga_per_m3'          => number_format((float) $quickCastEstimation->harga_per_m3, 0, ',', '.'),
+                'estimasi_harga_total'  => number_format((float) $quickCastEstimation->estimasi_harga_total, 0, ',', '.'),
+            ];
+
+            return [
+                'printed_at'        => now()->format('Y-m-d H:i:s'),
+                'jenis_kalkulasi'   => 'Cor Cepat (Quick Cast)',
+                'document_no'       => 'EST-QC-' . str_pad((string) $quickCastEstimation->id, 6, '0', STR_PAD_LEFT),
+                'prepared_by'       => $request->user()->name ?? $request->user()->email,
+                'app_name'          => config('app.name'),
+
+                'project'       => $project,
+                'parameters'    => $parameters,
+                'detail_items'  => $detailItems,
+                'deductions'    => [],
+                'summary'       => $summary,
+            ];
+        }
+
+        public function exportPdf(Request $request, QuickCastEstimation $quickCastEstimation)
+        {
+            abort_if($quickCastEstimation->user_id !== $request->user()->id, 403);
+        
+            $data = $this->buildPdfData($request, $quickCastEstimation);
+        
+            $pdf = Pdf::loadView('pdf.estimasi-template', $data)->setPaper('a4', 'portrait');
+        
+            $safeName = Str::slug($quickCastEstimation->nama_proyek ?: 'proyek-quick-cast');
+            $filename = "estimasi-quickcast-{$quickCastEstimation->id}-{$safeName}.pdf";
+        
+            return $pdf->download($filename);
+        }
 }

@@ -295,37 +295,102 @@ class RoadCalculatorController extends Controller
     }
     private function buildPdfData(Request $request, RoadEstimation $roadEstimation): array
     {
+        $roadEstimation->load(['segments', 'deductions']);
+    
+        $project = [
+            'nama_proyek'       => $roadEstimation->nama_proyek ?? '-',
+            'lokasi_proyek'     => $roadEstimation->lokasi_proyek ?? '-',
+            'mutu_beton'        => $roadEstimation->mutu_beton ?? '-',
+            'waste_percent'     => (float) $roadEstimation->waste_percent,
+            'metode_input'      => $roadEstimation->metode_input === 'total' ? 'Total Langsung' : 'Per Segmen (STA)',
+            'tanggal_estimasi'  => optional($roadEstimation->created_at)->format('Y-m-d H:i:s'),
+        ];
+    
+        $parameters = [
+            ['label' => 'Metode Input',      'value' => $roadEstimation->metode_input === 'total' ? 'Total Langsung' : 'Per Segmen (STA)'],
+            ['label' => 'Jumlah Lajur',      'value' => (int) $roadEstimation->jumlah_lajur],
+            ['label' => 'Lebar per Lajur',   'value' => number_format((float) $roadEstimation->lebar_per_lajur_m, 3, ',', '.') . ' m'],
+            ['label' => 'Bahu Kiri',         'value' => number_format((float) $roadEstimation->bahu_kiri_m, 3, ',', '.') . ' m'],
+            ['label' => 'Bahu Kanan',        'value' => number_format((float) $roadEstimation->bahu_kanan_m, 3, ',', '.') . ' m'],
+            ['label' => 'Lebar Total',       'value' => number_format((float) $roadEstimation->lebar_total_m, 3, ',', '.') . ' m'],
+            ['label' => 'Tebal Beton',       'value' => number_format((float) $roadEstimation->tebal_beton_m, 3, ',', '.') . ' m'],
+            ['label' => 'Panjang Total',     'value' => $roadEstimation->panjang_total_m !== null
+                ? number_format((float) $roadEstimation->panjang_total_m, 3, ',', '.') . ' m'
+                : '-'],
+        ];
+    
+        // Jika mode total, buat 1 baris detail
+        if ($roadEstimation->metode_input === 'total') {
+            $detailItems = [
+                [
+                    'nama'       => 'Jalan (Total Langsung)',
+                    'jumlah'     => 1,
+                    'dimensi'    => number_format((float) $roadEstimation->panjang_total_m, 3) . ' × '
+                                  . number_format((float) $roadEstimation->lebar_total_m, 3) . ' × '
+                                  . number_format((float) $roadEstimation->tebal_beton_m, 3) . ' m',
+                    'volume'     => number_format((float) $roadEstimation->volume_kotor, 4),
+                    'keterangan' => '-',
+                ],
+            ];
+        } else {
+            // Mode segmen
+            $detailItems = $roadEstimation->segments->map(fn ($s) => [
+                'nama'       => trim(($s->sta_awal ?? '-') . ' – ' . ($s->sta_akhir ?? '-')),
+                'jumlah'     => 1,
+                'dimensi'    => number_format((float) $s->panjang_m, 3) . ' × '
+                              . number_format((float) $s->lebar_m, 3) . ' × '
+                              . number_format((float) $s->tebal_m, 3) . ' m',
+                'volume'     => number_format((float) $s->volume_m3, 4),
+                'keterangan' => $s->keterangan ?: '-',
+            ])->values()->all();
+        }
+    
+        $deductions = $roadEstimation->deductions->map(fn ($d) => [
+            'nama'       => $d->jenis_bukaan ?: '-',
+            'jumlah'     => (int) $d->jumlah,
+            'dimensi'    => number_format((float) $d->panjang_m, 3) . ' × '
+                          . number_format((float) $d->lebar_m, 3) . ' × '
+                          . number_format((float) $roadEstimation->tebal_beton_m, 3) . ' m',
+            'volume'     => number_format((float) $d->volume_m3, 4),
+            'keterangan' => '-',
+        ])->values()->all();
+    
+        $summary = [
+            'volume_kotor'          => number_format((float) $roadEstimation->volume_kotor, 4, ',', '.'),
+            'volume_pengurang'      => number_format((float) $roadEstimation->volume_pengurang, 4, ',', '.'),
+            'volume_bersih'         => number_format((float) $roadEstimation->volume_bersih, 4, ',', '.'),
+            'waste_volume'          => number_format((float) $roadEstimation->waste_volume, 4, ',', '.'),
+            'total_akhir_m3'        => number_format((float) $roadEstimation->total_akhir_m3, 4, ',', '.'),
+            'harga_per_m3'          => number_format((float) $roadEstimation->harga_per_m3, 0, ',', '.'),
+            'estimasi_harga_total'  => number_format((float) $roadEstimation->estimasi_harga_total, 0, ',', '.'),
+        ];
+    
         return [
-            'printed_at' => now()->format('Y-m-d H:i:s'),
-            'document_no' => 'EST-ROAD-' . str_pad((string)$roadEstimation->id, 6, '0', STR_PAD_LEFT),
-            'prepared_by' => $request->user()->name ?? $request->user()->email,
-            'app_name' => config('app.name'),
-            'project' => [
-                'nama_proyek' => $roadEstimation->nama_proyek ?? '-',
-                'lokasi_proyek' => $roadEstimation->lokasi_proyek ?? '-',
-                'mutu_beton' => $roadEstimation->mutu_beton ?? '-',
-                'tanggal_estimasi' => optional($roadEstimation->created_at)->format('Y-m-d H:i:s'),
-            ],
-            'summary' => [
-                'volume_kotor' => number_format((float)($roadEstimation->volume_kotor ?? 0), 4, ',', '.'),
-                'volume_pengurang' => number_format((float)($roadEstimation->volume_pengurang ?? 0), 4, ',', '.'),
-                'volume_bersih' => number_format((float)($roadEstimation->volume_bersih ?? 0), 4, ',', '.'),
-                'waste_volume' => number_format((float)($roadEstimation->waste_volume ?? 0), 4, ',', '.'),
-                'total_akhir_m3' => number_format((float)($roadEstimation->total_akhir_m3 ?? 0), 4, ',', '.'),
-                'harga_per_m3' => number_format((float)($roadEstimation->harga_per_m3 ?? 0), 0, ',', '.'),
-                'estimasi_harga_total' => number_format((float)($roadEstimation->estimasi_harga_total ?? 0), 0, ',', '.'),
-            ],
+            'printed_at'        => now()->format('Y-m-d H:i:s'),
+            'jenis_kalkulasi'   => 'Estimasi Beton Jalan',
+            'document_no'       => 'EST-ROAD-' . str_pad((string) $roadEstimation->id, 6, '0', STR_PAD_LEFT),
+            'prepared_by'       => $request->user()->name ?? $request->user()->email,
+            'app_name'          => config('app.name'),
+    
+            'project'       => $project,
+            'parameters'    => $parameters,
+            'detail_items'  => $detailItems,
+            'deductions'    => $deductions,
+            'summary'       => $summary,
         ];
     }
 
     public function exportPdf(Request $request, RoadEstimation $roadEstimation)
     {
         abort_if($roadEstimation->user_id !== $request->user()->id, 403);
-
+    
         $data = $this->buildPdfData($request, $roadEstimation);
-        $pdf = Pdf::loadView('pdf.estimasi-road-template', $data)->setPaper('a4', 'portrait');
-
+    
+        $pdf = Pdf::loadView('pdf.estimasi-template', $data)->setPaper('a4', 'portrait');
+    
         $safeName = Str::slug($roadEstimation->nama_proyek ?: 'proyek-jalan');
-        return $pdf->download("estimasi-road-{$roadEstimation->id}-{$safeName}.pdf");
+        $filename = "estimasi-road-{$roadEstimation->id}-{$safeName}.pdf";
+    
+        return $pdf->download($filename);
     }
 }

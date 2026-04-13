@@ -26,8 +26,7 @@ const labelMetode = (m) => (m === 'total' ? 'Total Langsung' : 'Per Segmen');
                     <Link href="/engineer/road/history" class="text-indigo-600 hover:underline">
                         ← Kembali ke Riwayat Beton Jalan
                     </Link>
-                    <a
-                        :href="`/engineer/road/history/${item.id}/export-pdf`"
+                    <a :href="`/engineer/road/history/${item.id}/export-pdf`"
                         class="rounded-md bg-red-600 px-3 py-1.5 text-white hover:bg-red-700"
                         >
                         Download PDF

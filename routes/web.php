@@ -35,8 +35,8 @@ Route::middleware(['auth', 'role:engineer'])->prefix('engineer')->name('engineer
     Route::get('/quick-cast', [QuickCastController::class, 'showCalculator'])->name('quick-cast.form');
     Route::post('/quick-cast', [QuickCastController::class, 'calculate'])->name('quick-cast.calculate');
     Route::get('/quick-cast/history', [QuickCastController::class, 'history'])->name('quick-cast.history');
-    Route::get('/quick-cast/history/{quickCastEstimation}', [QuickCastController::class, 'detail'])->whereNumber('quickCastEstimation')->name('quick-cast.detail');
-    Route::get('/quick-cast/history/{quickCastEstimation}/export-pdf', [QuickCastController::class, 'exportPdf'])->whereNumber('quickCastEstimation')->name('quick-cast.export-pdf');
+    Route::get('/quick-cast/history/{quickCastEstimation}/export-pdf', [QuickCastController::class, 'exportPdf'])->name('quick-cast.export-pdf');
+    Route::get('/quick-cast/history/{quickCastEstimation}', [QuickCastController::class, 'detail'])->name('quick-cast.detail');
 
     Route::get('/road', [RoadCalculatorController::class, 'showCalculator'])->name('road.form');
     Route::post('/road', [RoadCalculatorController::class, 'calculate'])->name('road.calculate');
