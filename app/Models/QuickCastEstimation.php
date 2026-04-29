@@ -24,4 +24,8 @@ class QuickCastEstimation extends Model
         'harga_per_m3',
         'estimasi_harga_total',
     ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

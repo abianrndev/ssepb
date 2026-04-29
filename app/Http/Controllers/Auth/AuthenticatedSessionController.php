@@ -13,9 +13,6 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
@@ -24,38 +21,40 @@ class AuthenticatedSessionController extends Controller
         ]);
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function store(LoginRequest $request): RedirectResponse
-{
-    $request->authenticate();
+    {
+        $request->authenticate();
+        $request->session()->regenerate();
 
-    $request->session()->regenerate();
+        $user = Auth::user();
 
-    $user = Auth::user();
+        if (!$user->is_active) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        
+            return redirect('/login')->withErrors([
+                'email' => 'Akun nonaktif. Hubungi admin.',
+            ]);
+        }
 
-    if ($user->hasRole('admin')) {
-        return redirect()->intended('/admin');
+        if ($user->hasRole('admin')) {
+            return redirect()->intended('/admin');
+        }
+
+        if ($user->hasRole('engineer')) {
+            return redirect()->intended('/engineer');
+        }
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/login')->withErrors([
+            'email' => 'Akun belum memiliki role. Hubungi admin.',
+        ]);
     }
 
-    if ($user->hasRole('engineer')) {
-        return redirect()->intended('/engineer');
-    }
-
-    // user tanpa role -> logout paksa
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect('/login')->withErrors([
-        'email' => 'Akun belum memiliki role. Hubungi admin.',
-    ]);
-}
-
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();

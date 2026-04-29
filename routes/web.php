@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\DashboardController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,10 +23,16 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn () => Inertia::render('Admin/Index'))->name('index');
+    Route::get('/', [DashboardController::class, 'index'])->name('index');
+
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
+    Route::patch('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+    Route::patch('/users/{user}/status', [UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::patch('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.update-role');
+
     Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
+    Route::post('/pricing', [PricingController::class, 'store'])->name('pricing.store');
     Route::patch('/pricing/{priceSetting}', [PricingController::class, 'update'])->name('pricing.update');
 });
 

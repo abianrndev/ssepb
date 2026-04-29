@@ -16,6 +16,12 @@ const form = useForm({
     is_active: true,
 });
 
+const createForm = useForm({
+    mutu_beton: '',
+    harga_per_m3: 0,
+    is_active: true,
+});
+
 const formatRupiah = (value) => {
     const n = Number(value || 0);
     return new Intl.NumberFormat('id-ID').format(n);
@@ -28,6 +34,13 @@ const updatePrice = (row) => {
     form.patch(`/admin/pricing/${row.id}`, {
         preserveScroll: true,
         onSuccess: () => form.reset(),
+    });
+};
+
+const createPrice = () => {
+    createForm.post('/admin/pricing', {
+        preserveScroll: true,
+        onSuccess: () => createForm.reset(),
     });
 };
 </script>
@@ -43,9 +56,24 @@ const updatePrice = (row) => {
         </template>
 
         <div class="py-8">
-            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
-                <div v-if="page.props.flash?.success" class="mb-4 rounded-lg bg-green-100 p-3 text-green-800">
+            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
+                <div v-if="page.props.flash?.success" class="rounded-lg bg-green-100 p-3 text-green-800">
                     {{ page.props.flash.success }}
+                </div>
+
+                <div class="rounded-xl bg-white p-6 shadow dark:bg-gray-800">
+                    <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Tambah Mutu Beton Baru</h3>
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <input v-model="createForm.mutu_beton" class="rounded-md border-gray-300 text-sm" placeholder="Mutu (contoh: K-250)" />
+                        <input v-model.number="createForm.harga_per_m3" type="number" min="0" class="rounded-md border-gray-300 text-sm" placeholder="Harga / m³" />
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" v-model="createForm.is_active" />
+                            <span>{{ createForm.is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                        </label>
+                    </div>
+                    <button @click="createPrice" class="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700" :disabled="createForm.processing">
+                        Simpan
+                    </button>
                 </div>
 
                 <div class="overflow-x-auto rounded-xl bg-white p-4 shadow dark:bg-gray-800">

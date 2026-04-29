@@ -38,4 +38,8 @@ class RoadEstimation extends Model
     {
         return $this->hasMany(RoadDeduction::class);
     }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
